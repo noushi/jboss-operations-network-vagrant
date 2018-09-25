@@ -1,0 +1,66 @@
+#!/bin/bash
+
+[ "$JON_USER" = "" ] && JON_USER=vagrant
+
+JON_ZIP=rsrc/jon/jon-server-3.3.0.GA.zip
+JON_PATCH_ZIP=rsrc/jon/jon-server-3.3-update-08.zip
+
+SERVICE=jon-server
+SERVICE_UNIT=rsrc/jon/$SERVICE.service
+
+JON_BASE_INST_DIR=/opt/jon
+
+JON=$JON_BASE_INST_DIR/jon-server-3.3.0.GA
+JON_PATCH=$JON_BASE_INST_DIR/jon-server-3.3.0.GA-update-08
+
+
+reqs() { # prod compatible on the px vm
+    yum install -y java-1.8.0-openjdk-headless
+}
+
+install() {
+    mkdir -p $JON_BASE_INST_DIR
+    unzip $JON_ZIP -d $JON_BASE_INST_DIR
+    unzip $JON_PATCH_ZIP -d $JON_BASE_INST_DIR
+    chown -R $USER.$USER $JON_BASE_INST_DIR
+}
+
+patch() {
+    cd $JON_PATCH
+    ./apply-updates.sh $JON
+}
+
+init() {
+    cp rsrc/jon/rhq-server.properties $JON/bin
+    $JON/bin/rhqctl install --start
+}
+
+install_service() {
+    cp $SERVICE_UNIT /etc/systemd/system
+    systemctl daemon-reload
+    systemctl enable $SERVICE
+}
+
+remove() {
+    rm -Rf $JON_BASE_INST_DIR
+}
+
+cli() {
+    $JON/jbossas/bin/jboss-cli.sh -c --controller=localhost:6999
+}
+
+start() {
+    $JON/bin/rhqctl start
+}
+
+stop() {
+    $JON/bin/rhqctl stop
+}
+    
+status() {
+    $JON/bin/rhqctl status
+}
+
+
+"$1"
+

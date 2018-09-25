@@ -1,0 +1,80 @@
+#!/bin/bash
+
+
+ARCHIVE=rsrc/jboss_ws/jws-application-servers-3.0.3-RHEL7-x86_64.zip
+ARTEFACTS=rsrc/jboss_ws/
+
+INSTALL_DIR=/opt/ws
+
+JWS=$INSTALL_DIR/jws-3.0
+#TOMCAT7=$JWS/tomcat7
+#TOMCAT8=$JWS/tomcat8
+
+JMX_FILES=/etc/jon/tomcat
+
+USER=jon #requires agent install target
+
+
+install() {
+    unzip -d $INSTALL_DIR $ARCHIVE
+    chown -R $USER.$USER $INSTALL_DIR    
+}
+
+setup() {
+    for version in 7 8 ; do
+	cp $ARTEFACTS/startup.sh $JWS/tomcat${version}/bin
+    done
+
+    mkdir -p $JMX_FILES
+
+    for file in rsrc/jboss_ws/files/jmxremote.{access,password} ; do
+	cp $file $JMX_FILES
+    done
+
+    chown -R $USER.$USER $JMX_FILES
+    chmod 600 $JMX_FILES/*
+}
+
+
+remove() {
+    rm -Rf $INSTALL_DIR
+}
+
+
+_start() {
+    VERSION="$1"
+    cd $JWS/tomcat${VERSION}/bin
+    ./startup.sh
+}
+
+_stop() {
+    VERSION="$1"
+    cd $JWS/tomcat${VERSION}/bin
+    ./shutdown.sh
+}
+
+_status() {
+    VERSION="$1"
+    echo "ask me again when tomcat${VERSION} is a system service"
+    echo "sinon y a :"
+    ps aux | grep --color [t]omcat${VERSION} || echo rien
+}
+
+_logs() {
+    VERSION="$1"
+    less $JWS/tomcat${VERSION}/logs/*    
+}
+
+start7() { _start 7 ; }
+start8() { _start 8 ; }
+
+stop7() { _stop 7 ; }
+stop8() { _stop 8 ; }
+
+status7() { _status 7 ; }
+status8() { _status 8 ; }
+
+logs7() { _logs 7 ; }
+logs8() { _logs 8 ; }
+
+"$1"

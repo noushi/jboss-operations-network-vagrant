@@ -1,0 +1,46 @@
+#!/bin/bash
+
+
+start() {
+    docker run --restart=always -p 5432:5432 -Pd --name postgres edc4it/coursedb:1.0
+}
+
+stop() {
+    docker stop postgres
+}
+    
+delete() {
+    docker rm -f postgres
+}
+
+enter() {
+    psql -U postgres -h localhost -p 5432
+}
+
+prep() {
+    cat | enter <<EOF 
+create user rhqadmin with password 'rhqadmin';
+create database rhq;
+grant all privileges on database rhq to rhqadmin;
+EOF
+}
+
+purge() {
+    cat | enter <<EOF 
+drop database rhq;
+drop user rhqadmin;
+EOF
+}
+
+reset_pass() {
+    cat | enter <<EOF
+\c rhq;
+update rhq_principal set password = 'x1XwrxKuPvYUILiOnOZTLg==' where principal = 'rhqadmin';
+EOF
+}
+
+dump() {
+
+}
+
+"$1"

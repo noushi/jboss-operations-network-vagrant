@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ssh root@RX1930TST002 "$@"
+

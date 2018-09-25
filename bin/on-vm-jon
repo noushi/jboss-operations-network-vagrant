@@ -1,0 +1,8 @@
+#!/bin/bash
+
+#USER=root
+USER=vagrant
+HOST=PX1920inf016
+
+ssh $USER@$HOST "$@"
+

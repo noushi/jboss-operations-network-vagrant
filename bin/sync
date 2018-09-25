@@ -1,0 +1,24 @@
+#!/bin/bash
+
+WHAT=$(realpath $PWD)
+
+#USER=root
+USER=vagrant 
+HOST=PX1920inf016
+
+if [ "$1" = "" ] ; then
+    WHERE=$USER@$HOST
+else
+    WHERE="$1"
+    if [ "$2" = "" ] ; then #for clarity
+	DIR=
+    else
+	DIR="$2"
+    fi
+fi
+
+
+
+find -type f -name '*~' -exec rm {} \; -print
+rsync -avzP "$WHAT" "$WHERE:$DIR"
+

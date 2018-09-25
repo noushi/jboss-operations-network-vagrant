@@ -1,0 +1,33 @@
+#!/bin/bash
+
+
+INSTALLER=rsrc/jboss_eap/jboss-eap-6.4.0-installer.jar
+ANSWER_FILE=rsrc/jboss_eap/unattended.xml
+VARIABLE_FILE=rsrc/jboss_eap/unattended.xml.variables
+
+EAP_DIR=/opt/eap #hardcoded in the unattended file
+
+USER=jon #requires agent install target
+
+OFFSET=1000
+PUBLIC_IP=$(facter ipaddress_eth1)
+
+install() {
+    java -jar $INSTALLER $ANSWER_FILE -variablefile $VARIABLE_FILE
+    chown -R $USER.$USER $EAP_DIR
+}
+
+remove() {
+    rm -Rf $EAP_DIR
+}
+
+start() {
+    sudo -u $USER $EAP_DIR/bin/standalone.sh -Djboss.bind.address=$PUBLIC_IP -Djboss.bind.address.management=$PUBLIC_IP -Djboss.socket.binding.port-offset=$OFFSET
+}
+
+stop() {
+    echo "Ctrl-C!"
+}
+
+
+"$1"

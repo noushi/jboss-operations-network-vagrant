@@ -1,0 +1,58 @@
+#!/bin/bash
+
+#UNATTENDED=Y
+DELAY=1m
+
+
+JON_BASE_INST_DIR=/opt/jon
+
+JON=$JON_BASE_INST_DIR/jon-server-3.3.0.GA
+
+sensible_wait() {
+    if [ "$UNATTENDED" = Y ] ; then
+	sleep $DELAY
+    else
+	echo "==========> PRESS ENTER WHEN READY <=========="
+	read anything
+    fi
+}
+
+deploy() {
+    bin/db start
+    bin/db prep
+
+    bin/jon install
+    bin/jon init
+    sleep 30
+    bin/jon status
+    sensible_wait
+
+    bin/jon stop
+
+    bin/jon patch
+    rm $JON/bin/rhq-server.properties.new
+    find $JON -name '*.new' | (
+	while read new ; do
+	    echo "updating $new (.old backup is created)"
+	    mv ${new/.new} ${new/.new}.orig
+	    mv $new ${new/.new}
+	done
+    )
+
+    bin/plugin prepare
+    bin/plugin install 
+    bin/plugin patch
+
+    bin/jon start
+    echo WAIT A REALLY LONG TIME (~10min) AND CHECK AGAIN
+}
+
+
+undeploy() {
+    bin/jon stop
+    bin/jon remove
+#    bin/db purge
+    bin/db delete
+}
+
+"$1"

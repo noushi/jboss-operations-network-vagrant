@@ -1,0 +1,73 @@
+#!/bin/bash
+
+USER=vagrant
+
+# yum
+yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
+yum install -y yum-utils
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+yum makecache fast
+
+alias yum="yum -C"
+
+# tools
+yum install -y git unzip byobu tree psmisc puppet mlocate
+
+yum install -y postgresql
+
+yum install -y xauth xterm # gnome-terminal
+yum install -y emacs-nox
+
+# java
+yum install -y java-1.8.0-openjdk-headless
+
+
+# docker 
+yum -y install docker-ce
+systemctl enable docker
+systemctl start docker
+
+usermod -aG docker $USER
+
+
+# postgres db
+git clone https://github.com/rparree/docker-images
+cd docker-images/coursedb/
+docker build -t edc4it/coursedb:1.0 .
+
+
+PG_HOST=localhost
+PG_PORT=5432
+PG_USER=postgres
+PG_PASS=postgres
+PG_DB=postgres
+
+echo $PG_HOST:$PG_PORT:$PG_DB:$PG_USER:$PG_PASS >/home/$USER/.pgpass
+chown $USER.$USER /home/$USER/.pgpass
+chmod 600 /home/$USER/.pgpass
+
+
+
+# byobu
+mkdir /home/$USER/.byobu
+cat >/home/$USER/.byobu/keybindings.tmux <<EOF
+unbind-key -n C-a
+unbind-key -n C-p
+set -g prefix ^P
+set -g prefix2 ^P
+bind p send-prefix
+EOF
+
+chown -R $USER.$USER /home/$USER/.byobu
+
+
+
+echo "provisioned!"
+
+
+
+#sed -i 's/enabled=1/enabled=0/g' /etc/yum/pluginconf.d/subscription-manager.conf
+
+exit 0

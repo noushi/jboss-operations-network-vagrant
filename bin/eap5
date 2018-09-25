@@ -1,0 +1,22 @@
+#!/bin/bash
+
+BASE=/home/jon/jboss-5.1.0.GA
+
+USER=jon
+
+
+setup() {
+    echo 'JAVA_OPTS="${JAVA_OPTS} -Djboss.service.binding.set=ports-01 ' >>$BASE/bin/run.conf
+
+    # won't work
+    # echo 'JAVA_OPTS="${JAVA_OPTS} -Djboss.service.binding.set=ports-01 -Djboss.platform.mbeanserver  -Dcom.sun.management.jmxremote.host=localhost -Dcom.sun.management.jmxremote.port=12121 -Dcom.sun.management.jmxremote.access.file=/etc/jon/tomcat/jmxremote.access  -Dcom.sun.management.jmxremote.password.file=/etc/jon/tomcat/jmxremote.password -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.ssl=false"' >>$BASE/bin/run.conf
+
+}
+
+start() {
+    sudo -u $USER $BASE/bin/run.sh "$@"
+}
+
+
+
+"$@"

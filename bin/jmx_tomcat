@@ -1,0 +1,63 @@
+#!/bin/bash
+
+
+[ "$JON_AGENT_USER" = "" ] && JON_AGENT_USER=jon
+
+
+ARCHIVE=rsrc/jboss_ws/jws-application-servers-3.0.3-RHEL7-x86_64.zip
+ARTEFACTS=rsrc/jboss_ws/
+
+INSTALL_DIR=/opt/ws
+
+JWS=$INSTALL_DIR/jws-3.0
+
+JMX_FILES=/etc/jon/tomcat
+
+
+
+install() {
+    mkdir -p $JMX_FILES
+
+    for file in rsrc/jboss_ws/files/jmxremote.{access,password} ; do
+	cp $file $JMX_FILES
+    done
+
+    chown -R $JON_AGENT_USER $JMX_FILES
+    chmod 600 $JMX_FILES/*
+
+}
+
+
+setup() {
+    echo FIXME ; exit 1
+}
+
+
+_check_catalina() {
+    [ "$CATALINA_HOME" = "" ] && { echo missing CATALINA_HOME var for tomcat operations ; exit 1 ; }
+}
+
+start() {
+    _check_catalina
+    cd $CATALINA_HOME/bin
+    ./startup.sh
+}
+
+stop() {
+    _check_catalina
+    cd $CATALINA_HOME/bin
+    ./shutdown.sh
+}
+
+status() {
+    echo "ask me again when tomcat is a system service"
+    echo "sinon y a :"
+    ps aux |grep java | grep -v rhq | grep --color [t]omcat || echo rien
+}
+
+logs() {
+    less $CATALINA_HOME/logs/*    
+}
+
+
+"$1"

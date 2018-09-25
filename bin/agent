@@ -1,0 +1,170 @@
+#!/bin/bash
+set -x
+
+[ "$JON_AGENT_USER" = "" ] && JON_AGENT_USER=jon
+#echo $JON_AGENT_USER ; exit 0 # paranoia is good! (TM)
+
+[ "$JON_SERVER" = "" ] && JON_SERVER=jon-server
+
+
+SSH_PUBKEY=rsrc/jon/agent/server_user_ssh_pubkey
+
+JON_AGENT=rsrc/jon/agent/rhq-enterprise-agent-4.12.0.JON330GA.jar
+JON_ENV_FILE=rsrc/jon/agent/rhq-agent-env.sh
+
+
+SERVICE=rhq-agent
+
+# deactivate these outside of the vagrant environment
+IFACE=eth1
+BIND_ADDRESS=`facter ipaddress_$IFACE`
+RHQ_AGENT_ADDITIONAL_JAVA_OPTS="$RHQ_AGENT_ADDITIONAL_JAVA_OPTS -Drhq.communications.connector.bind-address=$BIND_ADDRESS " 
+
+
+AGENT_TEMPLATE=rsrc/jon/agent/agent-configuration.xml
+
+#INSTALL_DIR=/home/jon
+INSTALL_DIR=/opt/jon
+
+JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.121-0.b13.el7_3.x86_64/jre
+
+RHQ_AGENT_ADDITIONAL_JAVA_OPTS="$RHQ_AGENT_ADDITIONAL_JAVA_OPTS -Drhq.agent.configuration-setup-flag=true -Drhq.agent.server.bind-address=$JON_SERVER -Drhq.agent.wait-for-server-at-startup-msecs=600000"
+
+#RHQ_AGENT_ADDITIONAL_JAVA_OPTS="$RHQ_AGENT_ADDITIONAL_JAVA_OPTS -Drhq.agent.disable-native-system"
+#RHQ_AGENT_ADDITIONAL_JAVA_OPTS="$RHQ_AGENT_ADDITIONAL_JAVA_OPTS -Drhq.agent.register-with-server-at-startup=true "
+
+
+RHQ_AGENT_PIDFILE_DIR=/var/run
+PID_FILE=$RHQ_AGENT_PIDFILE_DIR/rhq-agent.pid
+
+
+ENV_VARS="RHQ_JAVA_EXE_FILE_PATH=$(which java)"
+
+red () { sed "/$1/s//`printf "\033[31m$1\033[0m"`/"; }
+green () { sed "/$1/s//`printf "\033[32m$1\033[0m"`/"; }
+
+_homedir_of() {
+    getent passwd "$1" | cut -d: -f6
+}
+
+HOMIE=$(_homedir_of $JON_AGENT_USER )
+
+# not in tmp so it could be preserved (for posterity)
+if [ -d "$HOMIE" ] ; then
+    AGENT_CONFFILE=${HOMIE}/jon_agent_configuration.xml
+else
+    AGENT_CONFFILE=/root/jon_agent_configuration.xml
+fi
+
+_warning() {
+    echo "=========== A LANCER UNIQUEMENT S'IL N'Y A PAS D'UTILISATEUR MIDDLEWARE ============"
+    echo "SI VOUS VOULEZ CONTINUER, EXECUTEZ CECI AVANT DE RELANCER LA MEME COMMANDE"
+    echo "export JE_SAIS_CE_QUE_JE_FAIS=oui"
+}
+
+_check() {
+    [ "$JE_SAIS_CE_QUE_JE_FAIS" = oui ] || exit 1
+}
+
+
+prep() {
+    _warning
+    _check
+    useradd $JON_AGENT_USER
+}
+
+unprep() {
+    _warning
+    _check
+    userdel -r $JON_AGENT_USER
+}
+
+reqs() { # prod compatible on the px vm
+    which java >/dev/null 2>&1 || yum install -y java-1.8.0-openjdk-headless
+}
+
+install() {
+    mkdir -p $INSTALL_DIR
+    java -jar $JON_AGENT --install=$INSTALL_DIR
+    #    chown -R $JON_AGENT_USER.$JON_AGENT_USER $INSTALL_DIR
+    chown -R $JON_AGENT_USER $INSTALL_DIR
+    cp $SSH_PUBKEY /root/.ssh/authorized_keys
+}
+
+template() {
+    sed "s|__JON_SERVER__|$JON_SERVER|" \
+	$AGENT_TEMPLATE > $AGENT_CONFFILE
+
+    #    chown $JON_AGENT_USER:$JON_AGENT_USER $AGENT_CONFFILE
+    chown $JON_AGENT_USER $AGENT_CONFFILE
+}
+
+setup() {
+    template
+    
+    cp $JON_ENV_FILE $INSTALL_DIR/rhq-agent/bin
+    cat >>$INSTALL_DIR/rhq-agent/bin/rhq-agent-env.sh  <<EOF 
+export RHQ_JAVA_EXE_FILE_PATH="$(which java)" #why?!
+export RHQ_JAVA_HOME="$JAVA_HOME"
+export RHQ_AGENT_HOME="$INSTALL_DIR/rhq-agent"
+export RHQ_AGENT_PIDFILE_DIR="$RHQ_AGENT_PIDFILE_DIR"
+export RHQ_AGENT_ADDITIONAL_JAVA_OPTS="$RHQ_AGENT_ADDITIONAL_JAVA_OPTS"
+export RHQ_AGENT_START_COMMAND="su -m $JON_AGENT_USER -c '\${RHQ_AGENT_HOME}/bin/rhq-agent.sh'"
+
+touch \$RHQ_AGENT_PIDFILE/rhq-agent.pid
+chown -R jon \$RHQ_AGENT_PIDFILE/rhq-agent.pid \$RHQ_AGENT_HOME
+
+
+EOF
+    sudo -u $JON_AGENT_USER $ENV_VARS $INSTALL_DIR/rhq-agent/bin/rhq-agent.sh -L --cleanconfig --nostart --daemon --config=$AGENT_CONFFILE
+
+    ln -s $INSTALL_DIR/rhq-agent/bin/rhq-agent-wrapper.sh /etc/init.d/$SERVICE
+    touch $PID_FILE
+    #    chown $JON_AGENT_USER:$JON_AGENT_USER $PID_FILE
+    chown $JON_AGENT_USER $PID_FILE
+    _init reload
+    _service enable
+}
+
+teardown() {
+    _service disable
+    _service stop
+    rm /etc/init.d/$SERVICE
+    _init reload
+    cp $JON_ENV_FILE $INSTALL_DIR/rhq-agent/bin
+}
+
+remove() {
+    rm -Rf $INSTALL_DIR/rhq-agent
+}
+
+as_jon() {
+    sudo -u $JON_AGENT_USER "$@"
+}
+
+start() { _service start ; }
+stop() { _service stop ; }
+status() { _service status ; }
+
+logs() { less $INSTALL_DIR/rhq-agent/logs/* ; }
+
+_init() {
+    [ "$1" = reload -a -e /sbin/systemctl ] && systemctl daemon-reload
+}
+
+_service() {
+    #    systemctl "$1" $SERVICE # too rhel7 specific
+    case "$1" in
+	enable)
+	    chkconfig --add $SERVICE
+	    ;;
+	disable)
+	    chkconfig --del $SERVICE
+	    ;;
+	*)
+	    service $SERVICE "$1"
+	    ;;
+    esac
+}
+
+"$@" 

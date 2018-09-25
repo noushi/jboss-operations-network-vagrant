@@ -1,0 +1,23 @@
+#!/bin/bash
+
+#!FIXME: incomplete
+#FROM="$1"
+#TO="$2"
+
+BASE=/root/installs
+TARGET=root@px1920inf016
+
+_sift() {
+    set -x
+    SERVER="$1"
+    DIR="$2"
+    TAG="$3"
+    ssh $TARGET mkdir -p $BASE/$TAG
+    ssh $TARGET echo $SERVER:$DIR \>$BASE/$TAG/from
+    ssh $SERVER tar cfz - "$DIR" | ssh $TARGET "cd $BASE/$TAG ; tar xvfz - "
+    set +x
+}
+
+
+
+# _sift root@rx1930log001 /home/jboss_2.3.1 jboss_eap_5.1.0.ga 

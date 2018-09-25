@@ -1,0 +1,17 @@
+#!/bin/bash
+
+
+WHAT="$1"
+IP="$2"
+JON=jon-server
+JBOSS=jboss
+
+
+ENTRY="$IP\t$WHAT"
+
+if grep -q $WHAT /etc/hosts ; then
+    sed -i "s/^.*$WHAT.*$/$ENTRY/"  /etc/hosts 
+else
+    echo -e $ENTRY >>/etc/hosts
+fi
+

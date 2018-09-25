@@ -1,0 +1,38 @@
+#!/bin/bash
+
+USER=vagrant
+
+JON_PLUGIN_DIR=rsrc/jon
+
+JON_BASE_INST_DIR=/opt/jon
+
+JON=$JON_BASE_INST_DIR/jon-server-3.3.0.GA
+
+TMP=/tmp/jon-plugins
+PATCHES=$TMP-patches
+
+prepare() {
+    rm -Rf $TMP
+    mkdir $TMP
+    for pack in $JON_PLUGIN_DIR/jon-plugin-pack-*.zip ; do
+	unzip -d $TMP $pack
+    done
+}
+
+
+install() {
+    for jar in $TMP/*/*.jar ; do
+	cp $jar $JON/plugins
+    done
+}
+
+patch() {
+    rm -Rf $PATCHES
+    mkdir $PATCHES
+    for patch in $JON_PLUGIN_DIR/plugin-patches/*.zip ; do
+	unzip -o -d $PATCHES $patch
+    done
+    cp -R $PATCHES/{.patched,plugins} $JON
+}
+
+"$1"
